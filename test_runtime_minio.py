@@ -5,6 +5,7 @@ Test get and put data from minio
 """
 
 import os
+import time
 
 from pathlib import Path
 from typing import List
@@ -19,10 +20,29 @@ remote_path_to = "s3://my-s3-bucket/test_new.json"
 
 remote_base_url = "s3://my-s3-bucket/"
 
+def measure_runtime(func, *args, **kwargs):
+    """
+    Measure the runtime of a given function with its arguments.
+
+    Args:
+        func (callable): The function to measure.
+        *args: Positional arguments for the function.
+        **kwargs: Keyword arguments for the function.
+
+    Returns:
+        tuple: The result of the function and the runtime in seconds.
+    """
+    start_time = time.time()  # Start the timer
+    result = func(*args, **kwargs)  # Call the function
+    end_time = time.time()  # End the timer
+
+    runtime = end_time - start_time
+    return result, runtime
+
 
 @task
 def put_file(input_file_path: str, output_location: str = "") -> FlyteFile:
-    print(input_file_path)
+
     print(current_context().working_directory)  # /tmp/...
     remote_out_path = os.path.join(
         output_location,
@@ -60,10 +80,23 @@ def wf():
         "mock_files/mock_file_2000mb.txt",
     ]
 
-    for file in file_li[:2]:
+    import pandas as pd
+    runtime_li = []
+
+    for file in file_li:
         # flyte_file = FlyteFile(path=str(file)) 
-        print(os.path.exists(file))
+        print(f"file: {file}")
+
+        start_time = time.time()  # Start the timer
         put_file(file, remote_base_url)
+        end_time = time.time()  # End the timer
+
+        runtime = end_time - start_time
+        print(f"runtime: {runtime}")
+        runtime_li.append(runtime)
+
+    df = pd.DataFrame({"obstore": runtime_li})
+    df.to_csv("./runtime_measure_obstore.csv")
 
     # return out_file
 
